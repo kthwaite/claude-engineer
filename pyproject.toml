@@ -1,0 +1,28 @@
+[project]
+name = "claude-engineer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.37.1",
+    "pillow>=11.0.0",
+    "prompt-toolkit>=3.0.48",
+    "pydub>=0.25.1",
+    "python-dotenv>=1.0.1",
+    "rich>=13.9.3",
+    "speechrecognition>=3.11.0",
+    "tavily-python>=0.5.0",
+    "typer>=0.12.5",
+    "websockets>=13.1",
+]
+
+[project.scripts]
+claude-engineer = "claude_engineer.__main__:main_stub"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claude_engineer"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
