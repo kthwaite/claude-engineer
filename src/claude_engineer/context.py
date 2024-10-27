@@ -17,8 +17,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.syntax import Syntax
 from tavily import TavilyClient
 
-from claude_engineer.constants import MAX_CONTEXT_TOKENS, CODEEDITORMODEL
-
+from .config import Config
 from .process import ProcessHandler
 from .prompts import AUTOMODE_SYSTEM_PROMPT, BASE_SYSTEM_PROMPT
 from .tokens import TokenStats
@@ -248,6 +247,7 @@ class Context:
         tavily_api_key: str,
         console: Console | None = None,
     ):
+        self.config = Config()
         self.conversation_history = []
         self.console = console or Console()
         self.file_contents = {}
@@ -488,7 +488,7 @@ class Context:
             """
 
             response: PromptCachingBetaMessage = self.client.beta.prompt_caching.messages.create(
-                model=CODEEDITORMODEL,
+                model=self.config.model.code_editor,
                 max_tokens=8000,
                 system=[
                     {
@@ -754,7 +754,9 @@ class Context:
         table.add_column("Cache Write", style="blue")
         table.add_column("Cache Read", style="blue")
         table.add_column("Total", style="green")
-        table.add_column(f"% of Context ({MAX_CONTEXT_TOKENS:,})", style="yellow")
+        table.add_column(
+            f"% of Context ({self.config.max_context_tokens:,})", style="yellow"
+        )
         table.add_column("Cost ($)", style="red")
 
         model_costs = {
@@ -827,7 +829,7 @@ class Context:
 
             if model_costs[model]["has_context"]:
                 total_context_tokens += total_tokens
-                percentage = (total_tokens / MAX_CONTEXT_TOKENS) * 100
+                percentage = (total_tokens / self.config.max_context_tokens) * 100
             else:
                 percentage = 0
 
@@ -845,7 +847,7 @@ class Context:
             )
 
         grand_total = total_input + total_output + total_cache_write + total_cache_read
-        total_percentage = (total_context_tokens / MAX_CONTEXT_TOKENS) * 100
+        total_percentage = (total_context_tokens / self.config.max_context_tokens) * 100
 
         table.add_row(
             "Total",

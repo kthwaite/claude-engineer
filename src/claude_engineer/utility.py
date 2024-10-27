@@ -2,7 +2,7 @@
 
 import shutil
 import os
-from typing import Any, AsyncIterable, TypeVar
+from typing import AsyncIterable
 
 
 def is_installed(lib_name):

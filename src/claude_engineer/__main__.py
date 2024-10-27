@@ -22,13 +22,6 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 import typer
 
-from .constants import (
-    CODEEXECUTIONMODEL,
-    CONTINUATION_EXIT_PHRASE,
-    MAINMODEL,
-    MAX_CONTINUATION_ITERATIONS,
-    TOOLCHECKERMODEL,
-)
 from .context import Context, validate_files_structure
 from .tools import DEFAULT_TOOLS
 from .voice import test_voice_mode
@@ -190,7 +183,7 @@ async def send_to_ai_for_executing(ctx, code, execution_result):
         """
 
         response = ctx.client.beta.prompt_caching.messages.create(
-            model=CODEEXECUTIONMODEL,
+            model=ctx.config.model.code_execution,
             max_tokens=2000,
             system=[
                 {
@@ -266,7 +259,7 @@ async def decide_retry(ctx: Context, tool_checker_response, edit_results, tool_i
             return {"retry": False, "files_to_retry": []}
 
         response = ctx.client.messages.create(
-            model=TOOLCHECKERMODEL,
+            model=ctx.config.model.tool_checker,
             max_tokens=1000,
             system="""You are an AI assistant tasked with deciding whether to retry editing files based on the previous edit results and the AI's response. Respond with a JSON object containing 'retry' (boolean) and 'files_to_retry' (list of file paths).
 
@@ -591,7 +584,7 @@ async def chat_with_claude(
         try:
             # MAINMODEL call with prompt caching
             response = ctx.client.beta.prompt_caching.messages.create(
-                model=MAINMODEL,
+                model=ctx.config.model.main,
                 max_tokens=8000,
                 system=[
                     {
@@ -662,7 +655,7 @@ async def chat_with_claude(
     for content_block in response.content:
         if content_block.type == "text":
             assistant_response += content_block.text
-            if CONTINUATION_EXIT_PHRASE in content_block.text:
+            if ctx.config.continuation_exit_phrase in content_block.text:
                 exit_continuation = True
         elif content_block.type == "tool_use":
             tool_uses.append(content_block)
@@ -789,7 +782,7 @@ async def chat_with_claude(
 
         try:
             tool_response = ctx.client.messages.create(
-                model=TOOLCHECKERMODEL,
+                model=ctx.config.model.tool_checker,
                 max_tokens=8000,
                 system=ctx.update_system_prompt(current_iteration, max_iterations),
                 extra_headers={"anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15"},
@@ -977,7 +970,7 @@ async def main(console: Console, verbose: int = 0):
                 if len(parts) > 1 and parts[1].isdigit():
                     max_iterations = int(parts[1])
                 else:
-                    max_iterations = MAX_CONTINUATION_ITERATIONS
+                    max_iterations = ctx.config.max_continuation_iterations
 
                 automode = True
                 ctx.print(
@@ -1030,7 +1023,10 @@ async def main(console: Console, verbose: int = 0):
                                 break
                             continue
 
-                        if exit_continuation or CONTINUATION_EXIT_PHRASE in response:
+                        if (
+                            exit_continuation
+                            or ctx.config.continuation_exit_phrase in response
+                        ):
                             ctx.print(
                                 Panel(
                                     "Automode completed.",
