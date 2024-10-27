@@ -28,6 +28,24 @@ VOICE_COMMANDS = {
 }
 
 
+async def get_user_input(ctx: "Context", save_chat: Callable):
+    user_input = await ctx.handle_voice_mode()
+    if user_input is None:
+        return
+
+    stay_in_voice_mode, command_result = ctx.voice.process_voice_command(
+        user_input,
+        save_chat,
+        ctx.voice_mode,
+    )
+    if not stay_in_voice_mode:
+        ctx.exit_voice_mode()
+        if command_result:
+            ctx.print(Panel(command_result, style="cyan"))
+    elif command_result:
+        ctx.print(Panel(command_result, style="cyan"))
+
+
 class VoiceMode:
     # TODO make kwargs-only
     def __init__(
