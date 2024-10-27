@@ -17,6 +17,8 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.syntax import Syntax
 from tavily import TavilyClient
 
+from claude_engineer.files import FileHandler
+
 from .config import Config
 from .process import ProcessHandler
 from .prompts import AUTOMODE_SYSTEM_PROMPT, BASE_SYSTEM_PROMPT
@@ -250,7 +252,7 @@ class Context:
         self.config = Config()
         self.conversation_history = []
         self.console = console or Console()
-        self.file_contents = {}
+        self.file_contents = FileHandler()
         self.code_editor_memory = []
         self.code_editor_files = set()
         self.automode = False
@@ -297,7 +299,7 @@ class Context:
         self.code_editor_files = set()
         self.code_editor_memory = []
         self.conversation_history = []
-        self.file_contents = {}
+        self.file_contents = FileHandler()
         self.token_stats = {
             "mainmodel": TokenStats(),
             "tool_checker": TokenStats(),
@@ -339,10 +341,7 @@ class Context:
         When instructing to read a file, always use the full file path.
         """
 
-        files_in_context = "\n".join(self.file_contents.keys())
-        file_contents_prompt = f"\n\nFiles already in your context:\n{files_in_context}\n\nFile Contents:\n"
-        for path, content in self.file_contents.items():
-            file_contents_prompt += f"\n--- {path} ---\n{content}\n"
+        file_contents_prompt = self.file_contents.file_contents_prompt()
 
         if self.automode:
             iteration_info = ""
@@ -364,45 +363,8 @@ class Context:
                 + chain_of_thought_prompt
             )
 
-    def create_files(self, files):
-        results = []
-
-        # Handle different input types
-        if isinstance(files, str):
-            # If a string is passed, assume it's a single file path
-            files = [{"path": files, "content": ""}]
-        elif isinstance(files, dict):
-            # If a single dictionary is passed, wrap it in a list
-            files = [files]
-        elif not isinstance(files, list):
-            return "Error: Invalid input type for create_files. Expected string, dict, or list."
-
-        for file in files:
-            try:
-                if not isinstance(file, dict):
-                    results.append(f"Error: Invalid file specification: {file}")
-                    continue
-
-                path = file.get("path")
-                content = file.get("content", "")
-
-                if path is None:
-                    results.append("Error: Missing 'path' for file")
-                    continue
-
-                dir_name = os.path.dirname(path)
-                if dir_name:
-                    os.makedirs(dir_name, exist_ok=True)
-
-                with open(path, "w") as f:
-                    f.write(content)
-
-                self.file_contents[path] = content
-                results.append(f"File created and added to system prompt: {path}")
-            except Exception as e:
-                results.append(f"Error creating file: {str(e)}")
-
-        return "\n".join(results)
+    def create_files(self, files: str | dict | list) -> str:
+        return self.file_contents.create_files(files)
 
     async def generate_edit_instructions(
         self, file_path, file_content, instructions, project_context, full_file_contents
@@ -871,7 +833,7 @@ class Context:
             "code_editor": TokenStats(),
             "code_execution": TokenStats(),
         }
-        self.file_contents = {}
+        self.file_contents = FileHandler()
         self.code_editor_files = set()
         self.reset_code_editor_memory()
         self.print(
